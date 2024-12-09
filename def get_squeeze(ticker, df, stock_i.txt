@@ -1,0 +1,63 @@
+def get_squeeze(ticker, df, stock_info, ftd_data):
+    """
+    Analyze squeeze potential based on short interest, FTDs, and volume trends.
+    """
+    try:
+        if df is None or stock_info is None or ftd_data is None:
+            raise ValueError("Missing data for squeeze analysis.")
+
+        # Proceed with existing logic...
+	try:
+        # Ensure float, short interest, and other key fields are accessible
+        float_shares = stock_info.get('floatShares', 0)
+        short_interest = stock_info.get('shortPercentOfFloat', 0) * 100  # Convert to percentage
+        shares_outstanding = stock_info.get('sharesOutstanding', 0)
+
+        # Volume trends
+        short_volume_spike = False
+        daily_volume_decreasing = all(df['Volume'].iloc[-i] < df['Volume'].iloc[-i-1] for i in range(1, 6))
+
+        # Analyze FTDs
+        recent_ftds = ftd_data[
+            (ftd_data['SYMBOL'] == ticker) &
+            (ftd_data['SETTLEMENT DATE'] >= (datetime.now() - timedelta(days=30)))
+        ]
+        total_recent_ftds = recent_ftds['QUANTITY (FAILS)'].sum()
+        ftds_as_percent_of_float = (total_recent_ftds / float_shares) * 100 if float_shares > 0 else 0
+
+        # Squeeze parameters
+        high_squeeze = (
+            short_interest > 15
+            and short_volume_spike
+            and daily_volume_decreasing
+            and ftds_as_percent_of_float > 5
+        )
+        moderate_squeeze = (
+            (10 <= short_interest <= 15)
+            or (ftds_as_percent_of_float > 3)
+            or daily_volume_decreasing
+        )
+        low_squeeze = (
+            short_interest < 10 and ftds_as_percent_of_float <= 3 and not short_volume_spike
+        )
+
+        if high_squeeze:
+            return "High Squeeze Potential"
+        elif moderate_squeeze:
+            return "Moderate Squeeze Potential"
+        elif low_squeeze:
+            return "Low Squeeze Potential"
+        else:
+            return "No Squeeze Potential"
+    except Exception as e:
+        print(f"Error analyzing squeeze for {ticker}: {e}")
+        return "Error"
+        # Example check (for demonstration)
+        current_short = stock_info.get('shortPercentFloat', 0)
+        if current_short is None:
+            raise ValueError("Missing short interest data.")
+
+        # Squeeze analysis logic goes here...
+        return "Squeeze Potential Analysis Placeholder"  # Replace with actual result
+    except Exception as e:
+        return f"Error analyzing squeeze for {ticker}: {e}"
